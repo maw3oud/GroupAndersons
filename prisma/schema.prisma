@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
+  roleId        Int      @map("role_id")
+  department    String?
+  position      String?
+  profileImage  String?  @map("profile_image")
+  isActive      Boolean  @default(true) @map("is_active")
+  lastLogin     DateTime? @map("last_login")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  role          Role     @relation(fields: [roleId], references: [id])
+  files         File[]   @relation("UploadedFiles")
+  fileAccess    FileAccess[]
+  notes         Note[]   @relation("CreatedNotes")
+  sharedNotes   NoteAccess[]
+  instructions  Instruction[] @relation("CreatedInstructions")
+  applications  Application[] @relation("UserApplications")
+  
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  users       User[]
+
+  @@map("roles")
+}
+
+model File {
+  id              Int      @id @default(autoincrement())
+  filename        String   @unique
+  originalFilename String  @map("original_filename")
+  fileSize        Int      @map("file_size")
+  fileType        String   @map("file_type")
+  uploadedBy      Int      @map("uploaded_by")
+  isPublic        Boolean  @default(false) @map("is_public")
+  description     String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  uploader        User     @relation("UploadedFiles", fields: [uploadedBy], references: [id])
+  fileAccess      FileAccess[]
+
+  @@map("files")
+}
+
+model FileAccess {
+  id          Int      @id @default(autoincrement())
+  fileId      Int      @map("file_id")
+  userId      Int      @map("user_id")
+  canView     Boolean  @default(true) @map("can_view")
+  canDownload Boolean  @default(true) @map("can_download")
+  canEdit     Boolean  @default(false) @map("can_edit")
+  canDelete   Boolean  @default(false) @map("can_delete")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, userId])
+  @@map("file_access")
+}
+
+model Note {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String   @db.Text
+  createdBy   Int      @map("created_by")
+  isPrivate   Boolean  @default(true) @map("is_private")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  creator     User     @relation("CreatedNotes", fields: [createdBy], references: [id])
+  noteAccess  NoteAccess[]
+
+  @@map("notes")
+}
+
+model NoteAccess {
+  id          Int      @id @default(autoincrement())
+  noteId      Int      @map("note_id")
+  userId      Int      @map("user_id")
+  canEdit     Boolean  @default(false) @map("can_edit")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
+  @@map("note_access")
+}
+
+model Instruction {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String   @db.Text
+  createdBy   Int      @map("created_by")
+  department  String?
+  position    String?
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  creator     User     @relation("CreatedInstructions", fields: [createdBy], references: [id])
+
+  @@map("instructions")
+}
+
+model Application {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  type        String   // leave, promotion, equipment, training
+  title       String
+  description String   @db.Text
+  status      String   @default("pending") // pending, approved, rejected
+  feedback    String?  @db.Text
+  reviewedBy  Int?     @map("reviewed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation("UserApplications", fields: [userId], references: [id])
+
+  @@map("applications")
+}
